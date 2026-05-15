@@ -41,35 +41,43 @@ namespace MtsSupportWinForms
             sidebar.Controls.Add(btnLogout);
             sidebar.Controls.Add(brand);
 
-            var top = new Panel { Dock = DockStyle.Top, Height = 110, Padding = new Padding(24, 16, 24, 14), BackColor = Theme.Surface };
+            var top = new Panel { Dock = DockStyle.Top, Height = 150, Padding = new Padding(24, 16, 24, 14), BackColor = Theme.Surface };
             var title = new Label
             {
                 Text = GetMainModuleTitle(),
-                Dock = DockStyle.Top,
-                Height = 30,
+                AutoSize = true,
                 Font = new Font("Segoe UI", 18F, FontStyle.Bold),
-                ForeColor = Theme.Text
+                ForeColor = Theme.Text,
+                Margin = new Padding(0)
             };
             var subtitle = new Label
             {
                 Text = GetAccessSubtitle(),
-                Dock = DockStyle.Top,
-                Height = 36,
+                AutoSize = true,
                 Font = new Font("Segoe UI", 10F),
-                ForeColor = Theme.Muted
+                ForeColor = Theme.Muted,
+                Margin = new Padding(0, 4, 0, 0)
             };
             _dtStatsFrom.Value = DateTime.Today.AddMonths(-1);
             _dtStatsTo.Value = DateTime.Today;
             _dtStatsFrom.ValueChanged += delegate { FillStats(); };
             _dtStatsTo.ValueChanged += delegate { FillStats(); };
-            var statsPeriod = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 30, WrapContents = false };
+            var statsPeriod = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 10, 0, 0) };
             statsPeriod.Controls.Add(new Label { Text = "Статистика с", AutoSize = true, Padding = new Padding(0, 6, 0, 0), ForeColor = Theme.Muted });
             statsPeriod.Controls.Add(_dtStatsFrom);
             statsPeriod.Controls.Add(new Label { Text = "по", AutoSize = true, Padding = new Padding(4, 6, 0, 0), ForeColor = Theme.Muted });
             statsPeriod.Controls.Add(_dtStatsTo);
-            top.Controls.Add(subtitle);
-            top.Controls.Add(title);
-            top.Controls.Add(statsPeriod);
+            var topLayout = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                AutoScroll = false
+            };
+            topLayout.Controls.Add(title);
+            topLayout.Controls.Add(subtitle);
+            topLayout.Controls.Add(statsPeriod);
+            top.Controls.Add(topLayout);
 
             var body = new Panel { Dock = DockStyle.Fill, Padding = new Padding(22) };
             _statsPanel.Dock = DockStyle.Top;
