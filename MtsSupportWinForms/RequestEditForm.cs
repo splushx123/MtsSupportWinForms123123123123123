@@ -16,7 +16,7 @@ namespace MtsSupportWinForms
         private readonly ComboBox _cbEmployee = Theme.CreateComboBox(340);
         private readonly ComboBox _cbStatus = Theme.CreateComboBox(340);
         private readonly Button _btnNewClient = Theme.CreateSecondaryButton("Добавить клиента", 170);
-        private readonly Button _btnNewEquipment = Theme.CreateSecondaryButton("Добавить оборудование", 170);
+        private readonly Button _btnNewEquipment = Theme.CreateSecondaryButton("Добавить оборудование", 220);
         private readonly TextBox _txtDescription = Theme.CreateTextBox(340);
         private readonly DateTimePicker _dtRequest = new DateTimePicker { Width = 340, Format = DateTimePickerFormat.Custom, CustomFormat = "dd.MM.yyyy HH:mm" };
 
