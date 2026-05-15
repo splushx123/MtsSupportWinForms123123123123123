@@ -106,7 +106,7 @@ namespace MtsSupportWinForms
             AddStatCard("Открытые заявки", SafeCount("SELECT COUNT(*) FROM Request r INNER JOIN Status s ON s.status_id=r.status_id WHERE s.title_status <> N'Закрыто' AND r.date_request >= @dateFrom AND r.date_request < DATEADD(DAY,1,@dateTo)", _dtStatsFrom.Value.Date, _dtStatsTo.Value.Date).ToString(), Theme.Warning);
             if (_user.Role != UserRole.OperatorLine1)
             {
-                AddStatCard("Решения", SafeCount("SELECT COUNT(*) FROM Solution").ToString(), Color.FromArgb(56, 96, 178));
+                AddStatCard("Решения", SafeCount("SELECT COUNT(*) FROM Solution WHERE date_create >= @dateFrom AND date_create < DATEADD(DAY,1,@dateTo)", _dtStatsFrom.Value.Date, _dtStatsTo.Value.Date).ToString(), Color.FromArgb(56, 96, 178));
             }
             if (_user.Role == UserRole.Administrator)
             {
