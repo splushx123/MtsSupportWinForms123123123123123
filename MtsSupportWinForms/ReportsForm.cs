@@ -139,11 +139,8 @@ ORDER BY r.date_request DESC",
 SELECT s.title AS [Заголовок], e.fio AS [Сотрудник]
 FROM Solution s
 LEFT JOIN Employee e ON e.employee_id = s.employee_id
-WHERE s.date_create >= @dateFrom AND s.date_create < DATEADD(DAY, 1, @dateTo)
-ORDER BY s.solution_id DESC",
-                new System.Data.SqlClient.SqlParameter("@dateFrom", _dtFrom.Value.Date),
-                new System.Data.SqlClient.SqlParameter("@dateTo", _dtTo.Value.Date));
-            UpdateSummary("Показан перечень решений за выбранный период.");
+ORDER BY s.solution_id DESC");
+            UpdateSummary("Показан перечень решений (для таблицы Solution дата создания не хранится, поэтому период не применяется).");
         }
 
         private void UpdateSummary(string text)
