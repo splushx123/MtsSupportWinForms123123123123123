@@ -12,12 +12,14 @@ namespace MtsSupportWinForms
         private readonly TextBox _txtSerial = Theme.CreateTextBox(320);
         private readonly ComboBox _cbModel = Theme.CreateComboBox(320);
         private readonly ComboBox _cbClient = Theme.CreateComboBox(320);
+        private readonly int? _presetClientId;
 
-        public EquipmentEditForm(int? equipmentId, UserRole role, bool readOnlyView = false)
+        public EquipmentEditForm(int? equipmentId, UserRole role, bool readOnlyView = false, int? presetClientId = null)
         {
             _equipmentId = equipmentId;
             _role = role;
             _readOnlyView = readOnlyView;
+            _presetClientId = presetClientId;
             Theme.StyleForm(this);
             Text = equipmentId.HasValue ? "Карточка оборудования" : "Новое оборудование";
             Width = 620;
@@ -69,6 +71,10 @@ namespace MtsSupportWinForms
                     _cbModel.SelectedValue = Convert.ToInt32(row["model_id"]);
                     if (row["client_id"] != DBNull.Value) _cbClient.SelectedValue = Convert.ToInt32(row["client_id"]);
                 }
+            }
+            else if (_presetClientId.HasValue)
+            {
+                _cbClient.SelectedValue = _presetClientId.Value;
             }
         }
 

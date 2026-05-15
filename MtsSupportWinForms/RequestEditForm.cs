@@ -2,6 +2,7 @@ using System;
 using System.Data.SqlClient;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Data;
 
 namespace MtsSupportWinForms
 {
@@ -14,6 +15,8 @@ namespace MtsSupportWinForms
         private readonly ComboBox _cbClient = Theme.CreateComboBox(340);
         private readonly ComboBox _cbEmployee = Theme.CreateComboBox(340);
         private readonly ComboBox _cbStatus = Theme.CreateComboBox(340);
+        private readonly Button _btnNewClient = Theme.CreateSecondaryButton("+ Клиент", 110);
+        private readonly Button _btnNewEquipment = Theme.CreateSecondaryButton("+ Оборудование", 130);
         private readonly TextBox _txtDescription = Theme.CreateTextBox(340);
         private readonly DateTimePicker _dtRequest = new DateTimePicker { Width = 340, Format = DateTimePickerFormat.Custom, CustomFormat = "dd.MM.yyyy HH:mm" };
 
@@ -39,7 +42,11 @@ namespace MtsSupportWinForms
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             var row = 0;
             layout.Controls.Add(new Label { Text = "Клиент", AutoSize = true, Padding = new Padding(0, 8, 0, 0) }, 0, row);
-            layout.Controls.Add(_cbClient, 1, row++);
+            var clientRowPanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
+            clientRowPanel.Controls.Add(_cbClient);
+            clientRowPanel.Controls.Add(_btnNewClient);
+            clientRowPanel.Controls.Add(_btnNewEquipment);
+            layout.Controls.Add(clientRowPanel, 1, row++);
             layout.Controls.Add(new Label { Text = "Сотрудник", AutoSize = true, Padding = new Padding(0, 8, 0, 0) }, 0, row);
             layout.Controls.Add(_cbEmployee, 1, row++);
             if (_requestId.HasValue)
@@ -57,6 +64,8 @@ namespace MtsSupportWinForms
             var btnClose = Theme.CreateSecondaryButton("Закрыть", 120);
             btnSave.Click += delegate { Save(); };
             btnClose.Click += delegate { Close(); };
+            _btnNewClient.Click += delegate { CreateClientFromRequest(); };
+            _btnNewEquipment.Click += delegate { CreateEquipmentFromRequest(); };
             buttons.Controls.Add(btnSave);
             buttons.Controls.Add(btnClose);
 
@@ -100,10 +109,13 @@ namespace MtsSupportWinForms
             if (_role == UserRole.OperatorLine1)
             {
                 _cbEmployee.Enabled = false;
+                _btnNewEquipment.Enabled = false;
             }
             if (_role == UserRole.SpecialistLine2)
             {
                 _cbClient.Enabled = false;
+                _btnNewClient.Enabled = false;
+                _btnNewEquipment.Enabled = false;
             }
         }
 
@@ -114,8 +126,61 @@ namespace MtsSupportWinForms
             _cbClient.Enabled = false;
             _cbEmployee.Enabled = false;
             _cbStatus.Enabled = false;
+            _btnNewClient.Enabled = false;
+            _btnNewEquipment.Enabled = false;
             _txtDescription.ReadOnly = true;
             _dtRequest.Enabled = false;
+        }
+
+
+        private void CreateClientFromRequest()
+        {
+            if (_readOnlyView) return;
+            try
+            {
+                using (var form = new ClientEditForm(null, _role))
+                {
+                    if (form.ShowDialog(this) != DialogResult.OK) return;
+                }
+                ReloadClientsAndSelectLatest();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Не удалось создать клиента.\n" + ex.Message);
+            }
+        }
+
+        private void CreateEquipmentFromRequest()
+        {
+            if (_readOnlyView || _role == UserRole.OperatorLine1) return;
+            try
+            {
+                var clientId = UiHelpers.ComboValue(_cbClient);
+                using (var form = new EquipmentEditForm(null, _role, false, clientId))
+                {
+                    form.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Не удалось создать оборудование.\n" + ex.Message);
+            }
+        }
+
+        private void ReloadClientsAndSelectLatest()
+        {
+            var selected = UiHelpers.ComboValue(_cbClient);
+            DataTable clients = LookupService.Clients();
+            UiHelpers.BindLookup(_cbClient, clients, "client_id", "fio", false);
+            if (selected.HasValue)
+            {
+                _cbClient.SelectedValue = selected.Value;
+                return;
+            }
+            if (clients.Rows.Count > 0)
+            {
+                _cbClient.SelectedValue = Convert.ToInt32(clients.Rows[clients.Rows.Count - 1]["client_id"]);
+            }
         }
 
         private void Save()
