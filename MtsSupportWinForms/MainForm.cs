@@ -9,6 +9,8 @@ namespace MtsSupportWinForms
         private readonly UserAccount _user;
         private readonly FlowLayoutPanel _statsPanel = new FlowLayoutPanel();
         private readonly FlowLayoutPanel _tilesPanel = new FlowLayoutPanel();
+        private readonly DateTimePicker _dtStatsFrom = new DateTimePicker { Width = 120, Format = DateTimePickerFormat.Short };
+        private readonly DateTimePicker _dtStatsTo = new DateTimePicker { Width = 120, Format = DateTimePickerFormat.Short };
         public bool ReturnToLogin { get; private set; }
 
         public MainForm(UserAccount user)
@@ -56,8 +58,18 @@ namespace MtsSupportWinForms
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Theme.Muted
             };
+            _dtStatsFrom.Value = DateTime.Today.AddMonths(-1);
+            _dtStatsTo.Value = DateTime.Today;
+            _dtStatsFrom.ValueChanged += delegate { FillStats(); };
+            _dtStatsTo.ValueChanged += delegate { FillStats(); };
+            var statsPeriod = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 30, WrapContents = false };
+            statsPeriod.Controls.Add(new Label { Text = "Статистика с", AutoSize = true, Padding = new Padding(0, 6, 0, 0), ForeColor = Theme.Muted });
+            statsPeriod.Controls.Add(_dtStatsFrom);
+            statsPeriod.Controls.Add(new Label { Text = "по", AutoSize = true, Padding = new Padding(4, 6, 0, 0), ForeColor = Theme.Muted });
+            statsPeriod.Controls.Add(_dtStatsTo);
             top.Controls.Add(subtitle);
             top.Controls.Add(title);
+            top.Controls.Add(statsPeriod);
 
             var body = new Panel { Dock = DockStyle.Fill, Padding = new Padding(22) };
             _statsPanel.Dock = DockStyle.Top;
@@ -80,12 +92,13 @@ namespace MtsSupportWinForms
         private void FillStats()
         {
             _statsPanel.Controls.Clear();
+            if (_dtStatsFrom.Value.Date > _dtStatsTo.Value.Date) return;
             AddStatCard("Клиенты", SafeCount("SELECT COUNT(*) FROM Client").ToString(), Theme.Primary);
-            AddStatCard("Обращения", SafeCount("SELECT COUNT(*) FROM Request").ToString(), Theme.Success);
-            AddStatCard("Открытые заявки", SafeCount("SELECT COUNT(*) FROM Request r INNER JOIN Status s ON s.status_id=r.status_id WHERE s.title_status <> N'Закрыто'").ToString(), Theme.Warning);
+            AddStatCard("Обращения", SafeCount("SELECT COUNT(*) FROM Request WHERE date_request >= @dateFrom AND date_request < DATEADD(DAY,1,@dateTo)", _dtStatsFrom.Value.Date, _dtStatsTo.Value.Date).ToString(), Theme.Success);
+            AddStatCard("Открытые заявки", SafeCount("SELECT COUNT(*) FROM Request r INNER JOIN Status s ON s.status_id=r.status_id WHERE s.title_status <> N'Закрыто' AND r.date_request >= @dateFrom AND r.date_request < DATEADD(DAY,1,@dateTo)", _dtStatsFrom.Value.Date, _dtStatsTo.Value.Date).ToString(), Theme.Warning);
             if (_user.Role != UserRole.OperatorLine1)
             {
-                AddStatCard("Решения", SafeCount("SELECT COUNT(*) FROM Solution").ToString(), Color.FromArgb(56, 96, 178));
+                AddStatCard("Решения", SafeCount("SELECT COUNT(*) FROM Solution WHERE date_create >= @dateFrom AND date_create < DATEADD(DAY,1,@dateTo)", _dtStatsFrom.Value.Date, _dtStatsTo.Value.Date).ToString(), Color.FromArgb(56, 96, 178));
             }
             if (_user.Role == UserRole.Administrator)
             {
@@ -191,10 +204,14 @@ namespace MtsSupportWinForms
 
             return "Доступ к клиентам, обращениям, оборудованию и решениям.";
         }
-        private int SafeCount(string sql)
+        private int SafeCount(string sql, params object[] dateArgs)
         {
             try
             {
+                if (dateArgs.Length == 2)
+                {
+                    return Db.Count(sql, new System.Data.SqlClient.SqlParameter("@dateFrom", dateArgs[0]), new System.Data.SqlClient.SqlParameter("@dateTo", dateArgs[1]));
+                }
                 return Db.Count(sql);
             }
             catch
