@@ -12,7 +12,6 @@ namespace MtsSupportWinForms
     {
         private readonly DataGridView _grid = new DataGridView { Dock = DockStyle.Fill };
         private readonly ComboBox _cbReport = Theme.CreateComboBox(260);
-        private readonly CheckBox _chkOnlyActive = new CheckBox();
         private readonly Label _lblSummary = new Label();
         private readonly DateTimePicker _dtFrom = new DateTimePicker { Width = 130, Format = DateTimePickerFormat.Short };
         private readonly DateTimePicker _dtTo = new DateTimePicker { Width = 130, Format = DateTimePickerFormat.Short };
@@ -38,16 +37,11 @@ namespace MtsSupportWinForms
             _dtFrom.Value = DateTime.Today.AddMonths(-1);
             _dtTo.Value = DateTime.Today;
 
-            _chkOnlyActive.Text = "Только активные обращения";
-            _chkOnlyActive.AutoSize = true;
-            _chkOnlyActive.Padding = new Padding(0, 10, 0, 0);
-
             var btnExport = Theme.CreateSecondaryButton("Экспорт", 130);
             var btnClose = Theme.CreateSecondaryButton("Закрыть", 120);
             btnExport.Click += delegate { ExportReport(); };
             btnClose.Click += delegate { Close(); };
             _cbReport.SelectedIndexChanged += delegate { BuildReport(); };
-            _chkOnlyActive.CheckedChanged += delegate { BuildReport(); };
             _dtFrom.ValueChanged += delegate { BuildReport(); };
             _dtTo.ValueChanged += delegate { BuildReport(); };
 
@@ -61,7 +55,6 @@ namespace MtsSupportWinForms
             top.Controls.Add(_dtFrom);
             top.Controls.Add(new Label { Text = "по:", AutoSize = true, Padding = new Padding(4, 10, 0, 0) });
             top.Controls.Add(_dtTo);
-            top.Controls.Add(_chkOnlyActive);
             top.Controls.Add(btnExport);
             top.Controls.Add(btnClose);
             top.Controls.Add(_lblSummary);
@@ -86,12 +79,10 @@ namespace MtsSupportWinForms
 
         private void ShowStatusReport()
         {
-            var whereActive = _chkOnlyActive.Checked ? "AND s.title_status <> N'Закрыто'" : string.Empty;
             _grid.DataSource = Db.Query(@"
 SELECT s.title_status AS [Статус], COUNT(r.request_id) AS [Количество обращений]
 FROM Status s
 LEFT JOIN Request r ON r.status_id = s.status_id AND r.date_request >= @dateFrom AND r.date_request < DATEADD(DAY, 1, @dateTo)
-" + whereActive + @"
 GROUP BY s.title_status
 ORDER BY [Количество обращений] DESC",
                 new System.Data.SqlClient.SqlParameter("@dateFrom", _dtFrom.Value.Date),
@@ -101,14 +92,12 @@ ORDER BY [Количество обращений] DESC",
 
         private void ShowEmployeeLoad()
         {
-            var whereActive = _chkOnlyActive.Checked ? "WHERE s.title_status <> N'Закрыто'" : string.Empty;
             _grid.DataSource = Db.Query(@"
 SELECT e.fio AS [Сотрудник], p.title_position AS [Должность], COUNT(r.request_id) AS [Количество обращений]
 FROM Employee e
 LEFT JOIN Position p ON p.position_id = e.position_id
 LEFT JOIN Request r ON r.employee_id = e.employee_id AND r.date_request >= @dateFrom AND r.date_request < DATEADD(DAY, 1, @dateTo)
 LEFT JOIN Status s ON s.status_id = r.status_id
-" + whereActive + @"
 GROUP BY e.fio, p.title_position
 ORDER BY [Количество обращений] DESC, e.fio",
                 new System.Data.SqlClient.SqlParameter("@dateFrom", _dtFrom.Value.Date),
@@ -118,7 +107,6 @@ ORDER BY [Количество обращений] DESC, e.fio",
 
         private void ShowTimeReport()
         {
-            var onlyActive = _chkOnlyActive.Checked ? "AND s.title_status <> N'Закрыто'" : string.Empty;
             _grid.DataSource = Db.Query(@"
 SELECT c.fio AS [Клиент], s.title_status AS [Статус], r.date_request AS [Дата обращения],
        DATEDIFF(DAY, r.date_request, GETDATE()) AS [Дней с момента создания]
@@ -126,7 +114,6 @@ FROM Request r
 INNER JOIN Client c ON c.client_id = r.client_id
 INNER JOIN Status s ON s.status_id = r.status_id
 WHERE r.date_request >= @dateFrom AND r.date_request < DATEADD(DAY, 1, @dateTo)
-" + onlyActive + @"
 ORDER BY r.date_request DESC",
                 new System.Data.SqlClient.SqlParameter("@dateFrom", _dtFrom.Value.Date),
                 new System.Data.SqlClient.SqlParameter("@dateTo", _dtTo.Value.Date));
