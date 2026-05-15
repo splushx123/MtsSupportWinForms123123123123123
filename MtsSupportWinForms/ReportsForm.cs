@@ -12,8 +12,9 @@ namespace MtsSupportWinForms
     {
         private readonly DataGridView _grid = new DataGridView { Dock = DockStyle.Fill };
         private readonly ComboBox _cbReport = Theme.CreateComboBox(260);
-        private readonly CheckBox _chkOnlyActive = new CheckBox();
         private readonly Label _lblSummary = new Label();
+        private readonly DateTimePicker _dtFrom = new DateTimePicker { Width = 130, Format = DateTimePickerFormat.Short };
+        private readonly DateTimePicker _dtTo = new DateTimePicker { Width = 130, Format = DateTimePickerFormat.Short };
 
         public ReportsForm()
         {
@@ -33,17 +34,16 @@ namespace MtsSupportWinForms
                 "Отчет по используемым решениям"
             });
             _cbReport.SelectedIndex = 0;
-
-            _chkOnlyActive.Text = "Только активные обращения";
-            _chkOnlyActive.AutoSize = true;
-            _chkOnlyActive.Padding = new Padding(0, 10, 0, 0);
+            _dtFrom.Value = DateTime.Today.AddMonths(-1);
+            _dtTo.Value = DateTime.Today;
 
             var btnExport = Theme.CreateSecondaryButton("Экспорт", 130);
             var btnClose = Theme.CreateSecondaryButton("Закрыть", 120);
             btnExport.Click += delegate { ExportReport(); };
             btnClose.Click += delegate { Close(); };
             _cbReport.SelectedIndexChanged += delegate { BuildReport(); };
-            _chkOnlyActive.CheckedChanged += delegate { BuildReport(); };
+            _dtFrom.ValueChanged += delegate { BuildReport(); };
+            _dtTo.ValueChanged += delegate { BuildReport(); };
 
             _lblSummary.AutoSize = true;
             _lblSummary.Padding = new Padding(0, 10, 0, 0);
@@ -51,7 +51,10 @@ namespace MtsSupportWinForms
 
             top.Controls.Add(new Label { Text = "Тип отчета:", AutoSize = true, Padding = new Padding(0, 10, 0, 0) });
             top.Controls.Add(_cbReport);
-            top.Controls.Add(_chkOnlyActive);
+            top.Controls.Add(new Label { Text = "Период с:", AutoSize = true, Padding = new Padding(8, 10, 0, 0) });
+            top.Controls.Add(_dtFrom);
+            top.Controls.Add(new Label { Text = "по:", AutoSize = true, Padding = new Padding(4, 10, 0, 0) });
+            top.Controls.Add(_dtTo);
             top.Controls.Add(btnExport);
             top.Controls.Add(btnClose);
             top.Controls.Add(_lblSummary);
@@ -63,6 +66,11 @@ namespace MtsSupportWinForms
 
         private void BuildReport()
         {
+            if (_dtFrom.Value.Date > _dtTo.Value.Date)
+            {
+                MessageBox.Show("Дата начала периода не может быть больше даты окончания.", "Период", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
             if (_cbReport.SelectedIndex == 0) ShowStatusReport();
             else if (_cbReport.SelectedIndex == 1) ShowEmployeeLoad();
             else if (_cbReport.SelectedIndex == 2) ShowTimeReport();
@@ -71,44 +79,45 @@ namespace MtsSupportWinForms
 
         private void ShowStatusReport()
         {
-            var whereActive = _chkOnlyActive.Checked ? "WHERE s.title_status <> N'Закрыто'" : string.Empty;
             _grid.DataSource = Db.Query(@"
 SELECT s.title_status AS [Статус], COUNT(r.request_id) AS [Количество обращений]
 FROM Status s
-LEFT JOIN Request r ON r.status_id = s.status_id
-" + whereActive + @"
+LEFT JOIN Request r ON r.status_id = s.status_id AND r.date_request >= @dateFrom AND r.date_request < DATEADD(DAY, 1, @dateTo)
 GROUP BY s.title_status
-ORDER BY [Количество обращений] DESC");
-            UpdateSummary("Показано распределение обращений по статусам.");
+ORDER BY [Количество обращений] DESC",
+                new System.Data.SqlClient.SqlParameter("@dateFrom", _dtFrom.Value.Date),
+                new System.Data.SqlClient.SqlParameter("@dateTo", _dtTo.Value.Date));
+            UpdateSummary("Показано распределение обращений по статусам за выбранный период.");
         }
 
         private void ShowEmployeeLoad()
         {
-            var whereActive = _chkOnlyActive.Checked ? "WHERE s.title_status <> N'Закрыто'" : string.Empty;
             _grid.DataSource = Db.Query(@"
 SELECT e.fio AS [Сотрудник], p.title_position AS [Должность], COUNT(r.request_id) AS [Количество обращений]
 FROM Employee e
 LEFT JOIN Position p ON p.position_id = e.position_id
-LEFT JOIN Request r ON r.employee_id = e.employee_id
+LEFT JOIN Request r ON r.employee_id = e.employee_id AND r.date_request >= @dateFrom AND r.date_request < DATEADD(DAY, 1, @dateTo)
 LEFT JOIN Status s ON s.status_id = r.status_id
-" + whereActive + @"
 GROUP BY e.fio, p.title_position
-ORDER BY [Количество обращений] DESC, e.fio");
-            UpdateSummary("Показана нагрузка по сотрудникам. Отчет включает расчет количества заявок.");
+ORDER BY [Количество обращений] DESC, e.fio",
+                new System.Data.SqlClient.SqlParameter("@dateFrom", _dtFrom.Value.Date),
+                new System.Data.SqlClient.SqlParameter("@dateTo", _dtTo.Value.Date));
+            UpdateSummary("Показана нагрузка по сотрудникам за выбранный период.");
         }
 
         private void ShowTimeReport()
         {
-            var onlyActive = _chkOnlyActive.Checked ? "WHERE s.title_status <> N'Закрыто'" : string.Empty;
             _grid.DataSource = Db.Query(@"
 SELECT c.fio AS [Клиент], s.title_status AS [Статус], r.date_request AS [Дата обращения],
        DATEDIFF(DAY, r.date_request, GETDATE()) AS [Дней с момента создания]
 FROM Request r
 INNER JOIN Client c ON c.client_id = r.client_id
 INNER JOIN Status s ON s.status_id = r.status_id
-" + onlyActive + @"
-ORDER BY r.date_request DESC");
-            UpdateSummary("Показан срок существования каждой заявки в днях с момента регистрации.");
+WHERE r.date_request >= @dateFrom AND r.date_request < DATEADD(DAY, 1, @dateTo)
+ORDER BY r.date_request DESC",
+                new System.Data.SqlClient.SqlParameter("@dateFrom", _dtFrom.Value.Date),
+                new System.Data.SqlClient.SqlParameter("@dateTo", _dtTo.Value.Date));
+            UpdateSummary("Показан срок существования заявок за выбранный период.");
         }
 
         private void ShowSolutionReport()
@@ -118,7 +127,7 @@ SELECT s.title AS [Заголовок], e.fio AS [Сотрудник]
 FROM Solution s
 LEFT JOIN Employee e ON e.employee_id = s.employee_id
 ORDER BY s.solution_id DESC");
-            UpdateSummary("Показан перечень решений и сотрудников, которые их оформили.");
+            UpdateSummary("Показан перечень решений (для таблицы Solution дата создания не хранится, поэтому период не применяется).");
         }
 
         private void UpdateSummary(string text)
